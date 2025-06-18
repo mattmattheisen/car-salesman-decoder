@@ -96,7 +96,8 @@ sections = [
     "🛡️ Defense Strategies", 
     "🚩 Red Flags",
     "📚 Glossary",
-    "📋 Meeting Prep"
+    "📋 Meeting Prep",
+    "📄 Document Analyzer"
 ]
 
 selected_section = st.sidebar.selectbox("Choose a section:", sections)
@@ -545,6 +546,212 @@ elif selected_section == "📋 Meeting Prep":
         **Next Steps:**
         ____________________________________________
         """)
+
+# Document Analyzer Section
+elif selected_section == "📄 Document Analyzer":
+    st.markdown('<div class="section-header"><h2>📄 Document Analyzer</h2></div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    Upload your dealer quote, invoice, or contract and we'll help you decode the costs and identify potential red flags.
+    
+    **Supported formats:** PDF, JPG, PNG, TXT, DOCX
+    """)
+    
+    uploaded_file = st.file_uploader(
+        "Choose a file to analyze",
+        type=['pdf', 'jpg', 'jpeg', 'png', 'txt', 'docx'],
+        help="Upload your dealer quote, invoice, or contract for analysis"
+    )
+    
+    if uploaded_file is not None:
+        st.success(f"File uploaded: {uploaded_file.name}")
+        
+        # File analysis section
+        with st.spinner("Analyzing document..."):
+            
+            # Display file info
+            col1, col2 = st.columns(2)
+            with col1:
+                st.info(f"**File:** {uploaded_file.name}")
+                st.info(f"**Size:** {uploaded_file.size:,} bytes")
+            with col2:
+                st.info(f"**Type:** {uploaded_file.type}")
+            
+            # Manual input section for key values while we process
+            st.markdown("### 📊 Quick Analysis")
+            st.markdown("While we analyze your document, you can manually enter key values for instant cost breakdown:")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                vehicle_price = st.number_input("Vehicle Price ($)", value=0, step=100, key="doc_vehicle_price")
+                trade_in_value = st.number_input("Trade-in Value ($)", value=0, step=100, key="doc_trade")
+                down_payment = st.number_input("Down Payment ($)", value=0, step=100, key="doc_down")
+            
+            with col2:
+                interest_rate = st.number_input("Interest Rate (%)", value=0.0, step=0.1, format="%.2f", key="doc_rate")
+                loan_term = st.selectbox("Loan Term (months)", [0, 36, 48, 60, 72, 84], key="doc_term")
+                monthly_payment = st.number_input("Monthly Payment ($)", value=0, step=10, key="doc_monthly")
+            
+            with col3:
+                doc_fee = st.number_input("Doc Fee ($)", value=0, step=25, key="doc_fee")
+                extended_warranty = st.number_input("Extended Warranty ($)", value=0, step=100, key="warranty")
+                other_fees = st.number_input("Other Add-ons ($)", value=0, step=50, key="other_fees")
+            
+            if st.button("🔍 Analyze Costs", type="primary"):
+                
+                # Calculate totals
+                total_add_ons = doc_fee + extended_warranty + other_fees
+                amount_financed = vehicle_price - down_payment - trade_in_value + total_add_ons
+                
+                if loan_term > 0 and interest_rate > 0:
+                    monthly_rate = interest_rate / 100 / 12
+                    calculated_payment = amount_financed * (monthly_rate * (1 + monthly_rate)**loan_term) / ((1 + monthly_rate)**loan_term - 1)
+                    total_payments = calculated_payment * loan_term
+                    total_interest = total_payments - amount_financed
+                else:
+                    calculated_payment = 0
+                    total_payments = amount_financed
+                    total_interest = 0
+                
+                total_cost = vehicle_price + total_add_ons + total_interest
+                
+                # Display analysis
+                st.markdown("---")
+                st.markdown("### 📈 Cost Breakdown Analysis")
+                
+                # Main metrics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Vehicle Price", f"${vehicle_price:,.2f}")
+                with col2:
+                    st.metric("Total Add-ons", f"${total_add_ons:,.2f}")
+                with col3:
+                    st.metric("Total Interest", f"${total_interest:,.2f}")
+                with col4:
+                    st.metric("**TOTAL COST**", f"${total_cost:,.2f}")
+                
+                # Detailed breakdown
+                st.markdown("#### 💰 Detailed Cost Analysis")
+                
+                breakdown_data = {
+                    "Item": ["Vehicle Price", "Trade-in Credit", "Down Payment", "Amount Financed", 
+                            "Doc Fee", "Extended Warranty", "Other Add-ons", "Total Interest", "**TOTAL COST**"],
+                    "Amount": [f"${vehicle_price:,.2f}", f"-${trade_in_value:,.2f}", f"-${down_payment:,.2f}", 
+                              f"${amount_financed:,.2f}", f"${doc_fee:,.2f}", f"${extended_warranty:,.2f}", 
+                              f"${other_fees:,.2f}", f"${total_interest:,.2f}", f"**${total_cost:,.2f}**"]
+                }
+                
+                st.table(breakdown_data)
+                
+                # Red flag analysis
+                st.markdown("#### 🚩 Red Flag Analysis")
+                
+                red_flags = []
+                
+                if doc_fee > 300:
+                    red_flags.append(f"⚠️ **High Doc Fee**: ${doc_fee:,.2f} (typical range: $50-$200)")
+                
+                if extended_warranty > 0:
+                    red_flags.append(f"⚠️ **Extended Warranty**: ${extended_warranty:,.2f} - Often overpriced, check independent options")
+                
+                if interest_rate > 8.0:
+                    red_flags.append(f"⚠️ **High Interest Rate**: {interest_rate}% - Shop around for better rates")
+                
+                if loan_term > 60:
+                    red_flags.append(f"⚠️ **Long Loan Term**: {loan_term} months - You'll pay more interest")
+                
+                if monthly_payment > 0 and calculated_payment > 0:
+                    payment_diff = abs(monthly_payment - calculated_payment)
+                    if payment_diff > 10:
+                        red_flags.append(f"⚠️ **Payment Mismatch**: Quoted ${monthly_payment:.2f} vs calculated ${calculated_payment:.2f}")
+                
+                if total_add_ons > vehicle_price * 0.15:
+                    red_flags.append(f"⚠️ **Excessive Add-ons**: ${total_add_ons:,.2f} ({total_add_ons/vehicle_price*100:.1f}% of vehicle price)")
+                
+                if red_flags:
+                    for flag in red_flags:
+                        st.markdown(f'<div class="red-flag">{flag}</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<div class="defense-tip">✅ **No major red flags detected** - This appears to be a reasonable deal structure.</div>', unsafe_allow_html=True)
+                
+                # Recommendations
+                st.markdown("#### 💡 Recommendations")
+                
+                recommendations = []
+                
+                if interest_rate > 6.0:
+                    recommendations.append("🏦 **Get pre-approved** at your bank/credit union for comparison")
+                
+                if doc_fee > 200:
+                    recommendations.append("🗣️ **Negotiate the doc fee** - it's often inflated")
+                
+                if extended_warranty > 0:
+                    recommendations.append("📞 **Call your insurance company** for extended warranty alternatives")
+                
+                if loan_term > 60:
+                    recommendations.append("⏰ **Consider shorter loan term** to reduce total interest paid")
+                
+                if trade_in_value > 0:
+                    recommendations.append("🔍 **Get independent trade-in appraisal** from CarMax, Carvana, or KBB")
+                
+                recommendations.append("📝 **Review all paperwork carefully** before signing")
+                recommendations.append("🚶 **Don't be afraid to walk away** if the numbers don't work")
+                
+                for rec in recommendations:
+                    st.markdown(f'<div class="defense-tip">{rec}</div>', unsafe_allow_html=True)
+    
+    else:
+        # Instructions when no file is uploaded
+        st.markdown("### 📋 How to Use the Document Analyzer")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            **What you can upload:**
+            - Dealer quotes and estimates
+            - Purchase agreements 
+            - Financing paperwork
+            - Trade-in appraisals
+            - Service contracts
+            - Lease agreements
+            """)
+        
+        with col2:
+            st.markdown("""
+            **What we'll analyze:**
+            - Total cost breakdown
+            - Hidden fees and markups
+            - Interest rate competitiveness
+            - Add-on pricing evaluation
+            - Payment calculation verification
+            - Red flag identification
+            """)
+        
+        st.markdown("### 📸 Tips for Best Results")
+        
+        st.markdown('<div class="prep-item">', unsafe_allow_html=True)
+        st.markdown("""
+        **For Photos/Scans:**
+        - Ensure text is clearly readable
+        - Include all pages of multi-page documents
+        - Good lighting and minimal glare
+        - Take photos straight-on (not at an angle)
+        """)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.markdown('<div class="prep-item">', unsafe_allow_html=True)
+        st.markdown("""
+        **Key Information to Look For:**
+        - Vehicle sale price
+        - Trade-in allowance
+        - Down payment amount
+        - Interest rate and loan term
+        - Monthly payment
+        - All fees and add-ons
+        """)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # Footer
 st.markdown("---")
