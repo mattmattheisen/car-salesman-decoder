@@ -121,7 +121,7 @@ if selected_section == "🏠 Home":
         Don't Get Sold - Get Decoded
     </div>
     """, unsafe_allow_html=True)
-    
+    st.markdown('<div style="text-align: center; color: #666; font-size: 0.9rem; margin: 1rem 0; padding: 1rem; background-color: #f8f9fa; border-radius: 5px;"><strong>Disclaimer:</strong> This tool is for educational purposes only. Always consult with qualified professionals for financial advice.</div>', unsafe_allow_html=True)
     st.markdown("---")
     
     col1, col2, col3 = st.columns(3)
